@@ -49,7 +49,7 @@ pipelines:
       - step:
           name: "Trigger | Pull Request: develop"
           script:
-            - echo "Detected an active PULL REQUEST involving DEVLOP branch."
+            - echo "Detected an active PULL REQUEST involving DEVELOP branch."
       - step:
           <<: *test_build
   branches:
