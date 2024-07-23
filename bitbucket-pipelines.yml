@@ -1,6 +1,8 @@
 image: node:16.20.2
+
 definitions:
   steps:
+
     - step: &test_build
         name: Test Build
         caches:
@@ -10,65 +12,66 @@ definitions:
           - echo "VITE_CONTENTFUL_ACCESS_TOKEN=$VITE_CONTENTFUL_ACCESS_TOKEN" >> .env
           - npm install
           - npm run build
+        artifacts:
+          - dist/**
+
     - step: &amazon_s3_deployment
         name: Deploying to Amazon S3
-        caches:
-          - node
         script:
-          - apt-get update && apt-get install -y awscli
-          - echo "VITE_CONTENTFUL_SPACE_ID=$VITE_CONTENTFUL_SPACE_ID" >> .env
-          - echo "VITE_CONTENTFUL_ACCESS_TOKEN=$VITE_CONTENTFUL_ACCESS_TOKEN" >> .env
-          - npm install
-          - npm run build
+          - apt-get update
+          - apt-get install --yes awscli
           - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           - aws configure set default.region $AWS_DEFAULT_REGION
           - aws s3 sync dist/ s3://[YOUR BUCKET NAME GOES HERE] --delete
-    - step: &amazon_cloudfront_cache_invalidation
+
+    - step: &amazon_cloudfront_invalidation
         name: Invalidating Amazon CloudFront Cache
         script:
-          - apt-get update && apt-get install -y awscli
+          - apt-get update
+          - apt-get install --yes awscli
           - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
           - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
           - aws configure set default.region $AWS_DEFAULT_REGION
           - aws cloudfront create-invalidation --distribution-id $AWS_CLOUDFRONT_DISTRO_ID --paths "/*"
-  caches:
-    node: node_modules
 
 
 pipelines:
-  pull-requests:  
-    feature/*:
+
+  pull-requests:
+
+    feature/*:  
       - step:
           name: "Trigger | Pull Request: feature/*"
           script:
             - echo "Detected an active PULL REQUEST involving feature/* branches"
-      - step:
-          <<: *test_build
-    develop: 
+      - step: *test_build
+
+    develop:
       - step:
           name: "Trigger | Pull Request: develop"
           script:
             - echo "Detected an active PULL REQUEST involving DEVELOP branch."
-      - step:
-          <<: *test_build
+      - step: *test_build
+
   branches:
+
     develop:
       - step:
           name: "Trigger | Merge: branch > develop"
           script:
             - echo "Detected a MERGE INTO DEVELOP branch."
-      - step:
-          <<: *test_build
+      - step: *test_build
+
     main:
       - step:
           name: "Trigger | Merge: develop > main"
           script:
             - echo "Detected a MERGE INTO MAIN branch."
-      - step:
-          <<: *test_build
-      - step:
-          <<: *amazon_s3_deployment
-      - step:
-          <<: *amazon_cloudfront_cache_invalidation
+      - step: *test_build
+      - step: *amazon_s3_deployment
+      - step: *amazon_cloudfront_invalidation
 
+
+caches:
+  node: node_modules
